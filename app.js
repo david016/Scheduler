@@ -3,6 +3,11 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ── Konštanty pre výpočet kurtov ─────────────────────────────
+const REG_MIN = 6;   // klasika: min 6 hráčov na kurt (3v3)
+const REG_MAX = 8;   // klasika: max 8 hráčov na kurt (4v4)
+const SMALL = 4;     // 2v2: presne 4 hráči na kurt
+
 let myName = localStorage.getItem("volley_name") || "";
 let events = [];
 let showPast = false;
@@ -36,6 +41,58 @@ function showError(msg) {
 }
 function hideError() {
   $("error").classList.add("hidden");
+}
+
+// Vráti optimálnu alokáciu kurtov: maximalizuje hrajúcich,
+// pri zhode preferuje menej kurtov, potom viac klasík.
+function calculateCourts(total, willing) {
+  let best = { courts: 0, playing: 0, small: 0, reg: 0, sitting: total };
+  const maxA = Math.floor(willing / SMALL);
+  for (let a = 0; a <= maxA; a++) {
+    const rem = total - SMALL * a;
+    if (rem < 0) continue;
+    const maxB = Math.floor(rem / REG_MIN);
+    for (let b = 0; b <= maxB; b++) {
+      const regPlayers = Math.min(rem, REG_MAX * b);
+      const playing = SMALL * a + regPlayers;
+      const courts = a + b;
+      if (courts === 0) continue;
+      const better =
+        playing > best.playing ||
+        (playing === best.playing && courts < best.courts) ||
+        (playing === best.playing && courts === best.courts && b > best.reg);
+      if (better) {
+        best = { courts, playing, small: a, reg: b, sitting: total - playing };
+      }
+    }
+  }
+  return best;
+}
+
+function courtSummary(total, willing) {
+  if (total === 0) return "Nikto ešte nie je prihlásený.";
+  const c = calculateCourts(total, willing);
+  const totalStr = `${total} ${plural(total, "hráč", "hráči", "hráčov")}`;
+  if (c.courts === 0) {
+    const hints = [];
+    if (total < SMALL) hints.push(`${SMALL - total} do 2v2`);
+    else if (willing < SMALL) hints.push(`${SMALL - willing} zaškrtnutých „aj 2v2"`);
+    if (total < REG_MIN) hints.push(`${REG_MIN - total} do klasiky`);
+    return `${totalStr} — málo na kurt (chýba: ${hints.join(" alebo ")}).`;
+  }
+  const parts = [];
+  if (c.reg) parts.push(`${c.reg}× klasika (${REG_MIN}–${REG_MAX} hr.)`);
+  if (c.small) parts.push(`${c.small}× 2v2 (${SMALL} hr.)`);
+  const sitting = c.sitting > 0
+    ? ` · ⚠ ${c.sitting} ${plural(c.sitting, "hráč nehrá", "hráči nehrajú", "hráčov nehrá")}`
+    : "";
+  return `${totalStr} · Rezervovať ${c.courts} ${plural(c.courts, "kurt", "kurty", "kurtov")}: ${parts.join(" + ")}${sitting}`;
+}
+
+function plural(n, one, few, many) {
+  if (n === 1) return one;
+  if (n >= 2 && n <= 4) return few;
+  return many;
 }
 
 async function load() {
@@ -87,21 +144,27 @@ function render() {
 }
 
 function cardHTML(ev) {
-  const main = ev.players.slice(0, ev.capacity);
-  const subs = ev.players.slice(ev.capacity);
+  const total = ev.players.length;
+  const willing = ev.players.filter((p) => p.willing_2v2).length;
   const joined = myName && ev.players.some((p) => p.name === myName);
   const past = isPast(ev);
-  const dots = Array.from(
-    { length: ev.capacity },
-    (_, i) =>
-      `<span class="${i < Math.min(ev.players.length, ev.capacity) ? "on" : ""}"></span>`,
-  ).join("");
+
+  const names = ev.players
+    .map((p) => `${esc(p.name)}${p.willing_2v2 ? " <span class=\"tag\">2v2</span>" : ""}`)
+    .join(", ");
 
   let action = "";
   if (!past && myName) {
-    action = joined
-      ? `<button class="btn leave" data-action="leave-event" data-id="${ev.id}">Odhlásiť sa</button>`
-      : `<button class="btn" data-action="join-event" data-id="${ev.id}">${main.length >= ev.capacity ? "Prihlásiť sa ako náhradník" : "Idem hrať"}</button>`;
+    if (joined) {
+      action = `<button class="btn leave" data-action="leave-event" data-id="${ev.id}">Odhlásiť sa</button>`;
+    } else {
+      action = `
+        <label class="checkbox">
+          <input type="checkbox" data-w2v2="${ev.id}" />
+          <span>Rád si zahrám aj 2v2 (menšie hry)</span>
+        </label>
+        <button class="btn" data-action="join-event" data-id="${ev.id}">Idem hrať</button>`;
+    }
   }
 
   return `<div class="card event ${past ? "past" : ""}">
@@ -109,10 +172,9 @@ function cardHTML(ev) {
     <div class="ev-title">${fmtDate(ev.date)} &middot; ${esc(ev.time?.slice(0, 5) || "")}</div>
     <div class="ev-place">${esc(ev.place)}</div>
     ${ev.note ? `<div class="ev-note">${esc(ev.note)}</div>` : ""}
-    <div class="row"><div class="dots">${dots}</div>
-      <span class="count">${main.length}/${ev.capacity}${subs.length ? ` (+${subs.length} náhr.)` : ""}</span></div>
-    ${ev.players.length ? `<div class="names">${main.map((p) => esc(p.name)).join(", ")}${subs.length ? `<span class="subs"> &middot; náhradníci: ${subs.map((p) => esc(p.name)).join(", ")}</span>` : ""}</div>` : ""}
-    ${action ? `<div style="margin-top:12px">${action}</div>` : ""}
+    <div class="courts">${courtSummary(total, willing)}</div>
+    ${total ? `<div class="names">${names}</div>` : ""}
+    ${action ? `<div class="actions">${action}</div>` : ""}
   </div>`;
 }
 
@@ -145,8 +207,6 @@ async function createEvent() {
   const date = $("f-date").value;
   const time = $("f-time").value || "18:00";
   const place = $("f-place").value.trim();
-  const capRaw = Number($("f-cap").value);
-  const capacity = Number.isFinite(capRaw) && capRaw >= 2 ? capRaw : 12;
   const note = $("f-note").value.trim();
 
   if (!date || !place) {
@@ -156,7 +216,7 @@ async function createEvent() {
 
   const { error } = await sb
     .from("events")
-    .insert({ date, time, place, capacity, note });
+    .insert({ date, time, place, note });
   if (error) {
     console.error("createEvent() zlyhal:", error);
     showError(
@@ -175,9 +235,11 @@ async function createEvent() {
 }
 
 async function joinEvent(id) {
+  const cb = document.querySelector(`input[data-w2v2="${id}"]`);
+  const willing_2v2 = !!(cb && cb.checked);
   const { error } = await sb
     .from("signups")
-    .insert({ event_id: id, name: myName });
+    .insert({ event_id: id, name: myName, willing_2v2 });
   if (error) {
     console.error("joinEvent() zlyhal:", error);
     showError("Prihlásenie zlyhalo: " + error.message);

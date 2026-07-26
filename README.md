@@ -2,6 +2,14 @@
 
 Jednoduchá statická appka na dohadovanie tréningov / zápasov. Frontend je čisté HTML/CSS/JS, backend je Supabase (Postgres + Realtime).
 
+## Funkcie
+
+- Vytvorenie termínu (dátum, čas, miesto, poznámka) — bez limitu prihlásených.
+- Prihlásenie/odhlásenie po mene (uložené v localStorage).
+- Voliteľná preferencia „aj 2v2" — hráč povie, že si zahrá aj menšiu hru.
+- **Automatický výpočet kurtov**: appka podľa počtu hráčov a preferencií 2v2 odporučí koľko kurtov rezervovať (klasika = 6–8 hráčov/kurt, 2v2 = 4 hráči/kurt) a maximalizuje počet hrajúcich.
+- Realtime — zmeny sa prejavia okamžite u všetkých.
+
 ## Štruktúra
 
 ```
@@ -19,6 +27,7 @@ scheduler/
 1. **Supabase projekt**
    - Vytvor projekt na [supabase.com](https://supabase.com/) (free tier stačí).
    - V dashboarde: **SQL Editor → New query → vlož obsah `setup.sql` → Run**.
+     - Skript je idempotentný — pokojne ho spusti aj keď už máš staré tabuľky (pridá stĺpec `willing_2v2` do `signups` a odstráni `capacity` z `events`).
    - **Settings → API** → skopíruj:
      - `Project URL` → do `config.js` ako `SUPABASE_URL`
      - `anon` alebo `publishable` kľúč → do `config.js` ako `SUPABASE_ANON_KEY`

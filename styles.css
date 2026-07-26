@@ -91,41 +91,56 @@ main {
   margin-top: 4px;
   font-style: italic;
 }
-.dots {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-  max-width: 160px;
-}
-.dots span {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  border: 2px solid var(--grey);
-  display: inline-block;
-}
-.dots span.on {
-  background: var(--ball);
-  border-color: var(--ball);
-}
-.row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-}
-.count {
+.courts {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #f5f9fa;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   font-size: 13px;
   color: var(--muted);
   font-weight: 600;
+  line-height: 1.4;
 }
 .names {
   margin-top: 10px;
   font-size: 14px;
-  line-height: 1.7;
+  line-height: 1.8;
 }
-.names .subs {
-  color: var(--faint);
+.names .tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--ball);
+  color: var(--ink);
+  padding: 1px 5px;
+  border-radius: 4px;
+  vertical-align: middle;
+  letter-spacing: 0.3px;
+}
+.actions {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.checkbox input {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
 }
 button {
   font-family: inherit;
