@@ -75,9 +75,8 @@ function courtSummary(total, willing) {
   const totalStr = `${total} ${plural(total, "hráč", "hráči", "hráčov")}`;
   if (c.courts === 0) {
     const hints = [];
-    if (total < SMALL) hints.push(`${SMALL - total} do 2v2`);
-    else if (willing < SMALL)
-      hints.push(`${SMALL - willing} zaškrtnutých „aj 2v2"`);
+    if (willing < SMALL)
+      hints.push(`${SMALL - willing}× zaškrtnutie „aj 2v2"`);
     if (total < REG_MIN) hints.push(`${REG_MIN - total} do klasiky`);
     return `${totalStr} — málo na kurt (chýba: ${hints.join(" alebo ")}).`;
   }
