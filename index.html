@@ -23,9 +23,14 @@
 
       <!-- Meno -->
       <div id="name-box" class="card">
-        <label>Tvoje meno (pod ním sa prihlasuješ)</label>
+        <label>Tvoje meno a priezvisko (pod ním sa prihlasuješ)</label>
         <div class="cols">
-          <div><input id="name-input" placeholder="napr. Dávid" /></div>
+          <div>
+            <input id="fname-input" placeholder="Meno" autocomplete="given-name" />
+          </div>
+          <div>
+            <input id="lname-input" placeholder="Priezvisko" autocomplete="family-name" />
+          </div>
           <div class="narrow">
             <button class="btn" style="width: 100%" data-action="set-name">
               OK

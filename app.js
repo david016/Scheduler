@@ -184,17 +184,23 @@ function cardHTML(ev) {
 
 // ── Akcie ────────────────────────────────────────────────────
 function setName() {
-  const v = $("name-input").value.trim();
-  if (!v) return;
-  myName = v;
-  localStorage.setItem("volley_name", v);
+  const first = $("fname-input").value.trim();
+  const last = $("lname-input").value.trim();
+  if (!first || !last) {
+    showError("Zadaj meno aj priezvisko.");
+    return;
+  }
+  myName = `${first} ${last}`;
+  localStorage.setItem("volley_name", myName);
+  hideError();
   render();
 }
 
 function clearName() {
   myName = "";
   localStorage.removeItem("volley_name");
-  $("name-input").value = "";
+  $("fname-input").value = "";
+  $("lname-input").value = "";
   render();
 }
 
@@ -244,7 +250,13 @@ async function joinEvent(id) {
     .insert({ event_id: id, name: myName, willing_2v2 });
   if (error) {
     console.error("joinEvent() zlyhal:", error);
-    showError("Prihlásenie zlyhalo: " + error.message);
+    if (error.code === "23505") {
+      showError(
+        `Meno „${myName}" je už prihlásené na tomto termíne. Ak si to nie ty, priprav si iné meno (napr. pridaj druhé meno) cez „zmeniť" hore.`,
+      );
+    } else {
+      showError("Prihlásenie zlyhalo: " + error.message);
+    }
   } else load();
 }
 
@@ -303,8 +315,10 @@ document.addEventListener("click", (e) => {
   }
 });
 
-$("name-input").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") setName();
+["fname-input", "lname-input"].forEach((id) => {
+  $(id).addEventListener("keydown", (e) => {
+    if (e.key === "Enter") setName();
+  });
 });
 
 // ── Realtime: zmeny od ostatných sa prejavia okamžite ────────
@@ -321,5 +335,9 @@ sb.channel("volley")
   )
   .subscribe();
 
-if (myName) $("name-input").value = myName;
+if (myName) {
+  const parts = myName.split(/\s+/);
+  $("fname-input").value = parts[0] || "";
+  $("lname-input").value = parts.slice(1).join(" ") || "";
+}
 load();
