@@ -69,6 +69,68 @@ function calculateCourts(total, willing) {
   return best;
 }
 
+function courtLabel(n) {
+  if (n === 4) return "2v2";
+  if (n === 6) return "3v3";
+  if (n === 7) return "3v4";
+  if (n === 8) return "4v4";
+  return `${n}?`;
+}
+
+// Všetky spôsoby ako rozdeliť k klasických kurtov na súčet S (každý kurt 6–8).
+function enumerateRegularSplits(k, S) {
+  const results = [];
+  for (let c6 = 0; c6 <= k; c6++) {
+    for (let c7 = 0; c7 <= k - c6; c7++) {
+      const c8 = k - c6 - c7;
+      if (c8 < 0) continue;
+      if (6 * c6 + 7 * c7 + 8 * c8 === S) {
+        const arr = [];
+        for (let i = 0; i < c8; i++) arr.push(8);
+        for (let i = 0; i < c7; i++) arr.push(7);
+        for (let i = 0; i < c6; i++) arr.push(6);
+        results.push(arr);
+      }
+    }
+  }
+  return results;
+}
+
+// Všetky rozdelenia dosahujúce daný počet kurtov a hrajúcich hráčov.
+function enumerateSplits(courts, playing, willing) {
+  const results = [];
+  const maxA = Math.min(Math.floor(willing / SMALL), courts);
+  for (let a = 0; a <= maxA; a++) {
+    const remainCourts = courts - a;
+    const remainPlayers = playing - SMALL * a;
+    if (remainCourts === 0) {
+      if (remainPlayers === 0) results.push({ a, sizes: [] });
+      continue;
+    }
+    if (remainPlayers < 0) continue;
+    const regSplits = enumerateRegularSplits(remainCourts, remainPlayers);
+    for (const rs of regSplits) results.push({ a, sizes: rs });
+  }
+  // Zoradiť: viac 2v2 najprv, potom väčšie kurty najprv
+  results.sort((x, y) => {
+    if (y.a !== x.a) return y.a - x.a;
+    for (let i = 0; i < Math.max(x.sizes.length, y.sizes.length); i++) {
+      const dx = y.sizes[i] ?? -1;
+      const cx = x.sizes[i] ?? -1;
+      if (dx !== cx) return dx - cx;
+    }
+    return 0;
+  });
+  return results;
+}
+
+function formatSplit(split) {
+  const parts = [];
+  for (let i = 0; i < split.a; i++) parts.push("2v2");
+  for (const s of split.sizes) parts.push(courtLabel(s));
+  return parts.join(" + ");
+}
+
 function courtSummary(total, willing) {
   if (total === 0) return "Nikto ešte nie je prihlásený.";
   const c = calculateCourts(total, willing);
@@ -80,14 +142,14 @@ function courtSummary(total, willing) {
     if (total < REG_MIN) hints.push(`${REG_MIN - total} do klasiky`);
     return `${totalStr} — málo na kurt (chýba: ${hints.join(" alebo ")}).`;
   }
-  const parts = [];
-  if (c.reg) parts.push(`${c.reg}× klasika (${REG_MIN}–${REG_MAX} hr.)`);
-  if (c.small) parts.push(`${c.small}× 2v2 (${SMALL} hr.)`);
   const sitting =
     c.sitting > 0
       ? ` · ⚠ ${c.sitting} ${plural(c.sitting, "hráč nehrá", "hráči nehrajú", "hráčov nehrá")}`
       : "";
-  return `${totalStr} · Rezervovať ${c.courts} ${plural(c.courts, "kurt", "kurty", "kurtov")}: ${parts.join(" + ")}${sitting}`;
+  const courtsLine = `${totalStr} · Rezervovať ${c.courts} ${plural(c.courts, "kurt", "kurty", "kurtov")}`;
+  const labels = enumerateSplits(c.courts, c.playing, willing).map(formatSplit);
+  if (labels.length <= 1) return `${courtsLine}: ${labels[0] || ""}${sitting}`;
+  return `${courtsLine}${sitting}<br>Možnosti: ${labels.join(", alebo ")}`;
 }
 
 function plural(n, one, few, many) {
