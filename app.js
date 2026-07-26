@@ -4,9 +4,9 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── Konštanty pre výpočet kurtov ─────────────────────────────
-const REG_MIN = 6;   // klasika: min 6 hráčov na kurt (3v3)
-const REG_MAX = 8;   // klasika: max 8 hráčov na kurt (4v4)
-const SMALL = 4;     // 2v2: presne 4 hráči na kurt
+const REG_MIN = 6; // klasika: min 6 hráčov na kurt (3v3)
+const REG_MAX = 8; // klasika: max 8 hráčov na kurt (4v4)
+const SMALL = 4; // 2v2: presne 4 hráči na kurt
 
 let myName = localStorage.getItem("volley_name") || "";
 let events = [];
@@ -76,16 +76,18 @@ function courtSummary(total, willing) {
   if (c.courts === 0) {
     const hints = [];
     if (total < SMALL) hints.push(`${SMALL - total} do 2v2`);
-    else if (willing < SMALL) hints.push(`${SMALL - willing} zaškrtnutých „aj 2v2"`);
+    else if (willing < SMALL)
+      hints.push(`${SMALL - willing} zaškrtnutých „aj 2v2"`);
     if (total < REG_MIN) hints.push(`${REG_MIN - total} do klasiky`);
     return `${totalStr} — málo na kurt (chýba: ${hints.join(" alebo ")}).`;
   }
   const parts = [];
   if (c.reg) parts.push(`${c.reg}× klasika (${REG_MIN}–${REG_MAX} hr.)`);
   if (c.small) parts.push(`${c.small}× 2v2 (${SMALL} hr.)`);
-  const sitting = c.sitting > 0
-    ? ` · ⚠ ${c.sitting} ${plural(c.sitting, "hráč nehrá", "hráči nehrajú", "hráčov nehrá")}`
-    : "";
+  const sitting =
+    c.sitting > 0
+      ? ` · ⚠ ${c.sitting} ${plural(c.sitting, "hráč nehrá", "hráči nehrajú", "hráčov nehrá")}`
+      : "";
   return `${totalStr} · Rezervovať ${c.courts} ${plural(c.courts, "kurt", "kurty", "kurtov")}: ${parts.join(" + ")}${sitting}`;
 }
 
@@ -150,7 +152,10 @@ function cardHTML(ev) {
   const past = isPast(ev);
 
   const names = ev.players
-    .map((p) => `${esc(p.name)}${p.willing_2v2 ? " <span class=\"tag\">2v2</span>" : ""}`)
+    .map(
+      (p) =>
+        `${esc(p.name)}${p.willing_2v2 ? ' <span class="tag">2v2</span>' : ""}`,
+    )
     .join(", ");
 
   let action = "";
@@ -161,7 +166,7 @@ function cardHTML(ev) {
       action = `
         <label class="checkbox">
           <input type="checkbox" data-w2v2="${ev.id}" />
-          <span>Rád si zahrám aj 2v2 (menšie hry)</span>
+          <span>Nemám problém hrať aj 2v2</span>
         </label>
         <button class="btn" data-action="join-event" data-id="${ev.id}">Idem hrať</button>`;
     }
@@ -214,9 +219,7 @@ async function createEvent() {
     return;
   }
 
-  const { error } = await sb
-    .from("events")
-    .insert({ date, time, place, note });
+  const { error } = await sb.from("events").insert({ date, time, place, note });
   if (error) {
     console.error("createEvent() zlyhal:", error);
     showError(
@@ -274,14 +277,30 @@ document.addEventListener("click", (e) => {
   const action = btn.dataset.action;
   const id = btn.dataset.id;
   switch (action) {
-    case "set-name": setName(); break;
-    case "clear-name": clearName(); break;
-    case "toggle-form": toggleForm(); break;
-    case "toggle-past": togglePast(); break;
-    case "create-event": createEvent(); break;
-    case "join-event": joinEvent(id); break;
-    case "leave-event": leaveEvent(id); break;
-    case "delete-event": deleteEvent(id); break;
+    case "set-name":
+      setName();
+      break;
+    case "clear-name":
+      clearName();
+      break;
+    case "toggle-form":
+      toggleForm();
+      break;
+    case "toggle-past":
+      togglePast();
+      break;
+    case "create-event":
+      createEvent();
+      break;
+    case "join-event":
+      joinEvent(id);
+      break;
+    case "leave-event":
+      leaveEvent(id);
+      break;
+    case "delete-event":
+      deleteEvent(id);
+      break;
   }
 });
 

@@ -28,8 +28,15 @@ drop policy if exists "open signups" on signups;
 create policy "open events" on events for all using (true) with check (true);
 create policy "open signups" on signups for all using (true) with check (true);
 
--- Zapni realtime pre obe tabuľky
-alter publication supabase_realtime add table events, signups;
+-- Zapni realtime pre obe tabuľky (idempotentne — ignoruj ak už sú v publikácii)
+do $$ begin
+  alter publication supabase_realtime add table events;
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  alter publication supabase_realtime add table signups;
+exception when duplicate_object then null;
+end $$;
 
 -- ─────────────────────────────────────────────────────────────
 -- MIGRÁCIA pre existujúce inštalácie (spusti ak si už mal setup):
