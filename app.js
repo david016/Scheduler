@@ -1,0 +1,245 @@
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let myName = localStorage.getItem("volley_name") || "";
+let events = [];
+let showPast = false;
+
+const $ = (id) => document.getElementById(id);
+const days = ["Ne", "Po", "Ut", "St", "Št", "Pi", "So"];
+const fmtDate = (iso) => {
+  const d = new Date(iso + "T00:00:00");
+  return `${days[d.getDay()]} ${d.getDate()}.${d.getMonth() + 1}.`;
+};
+const isPast = (ev) =>
+  new Date(`${ev.date}T${ev.time || "23:59"}`).getTime() <
+  Date.now() - 3 * 3600 * 1000;
+const esc = (s) =>
+  String(s).replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[c],
+  );
+
+function showError(msg) {
+  const e = $("error");
+  e.textContent = msg;
+  e.classList.remove("hidden");
+}
+function hideError() {
+  $("error").classList.add("hidden");
+}
+
+async function load() {
+  const { data: evs, error: e1 } = await sb
+    .from("events")
+    .select("*")
+    .order("date")
+    .order("time");
+  const { data: sgs, error: e2 } = await sb
+    .from("signups")
+    .select("*")
+    .order("created_at");
+  if (e1 || e2) {
+    const err = e1 || e2;
+    console.error("load() zlyhal:", err);
+    showError(
+      "Nepodarilo sa načítať dáta – skontroluj Supabase URL/kľúč a tabuľky.\n" +
+        (err.message || ""),
+    );
+    return;
+  }
+  hideError();
+  events = evs.map((ev) => ({
+    ...ev,
+    players: sgs.filter((s) => s.event_id === ev.id),
+  }));
+  render();
+}
+
+function render() {
+  const upcoming = events.filter((e) => !isPast(e));
+  const past = events.filter(isPast).reverse();
+
+  $("name-box").classList.toggle("hidden", !!myName);
+  $("topbar").classList.toggle("hidden", !myName);
+  if (myName) $("my-name-label").textContent = myName;
+
+  $("events").innerHTML = upcoming.length
+    ? upcoming.map(cardHTML).join("")
+    : '<div class="empty">Zatiaľ žiadne termíny. Vytvor prvý cez „+ Nový termín“.</div>';
+  $("events").style.cssText = "display:flex;flex-direction:column;gap:14px";
+
+  $("past-section").classList.toggle("hidden", past.length === 0);
+  $("past-toggle").textContent = showPast
+    ? "Skryť odohrané"
+    : `Odohrané termíny (${past.length})`;
+  $("past-events").classList.toggle("hidden", !showPast);
+  $("past-events").innerHTML = past.map(cardHTML).join("");
+}
+
+function cardHTML(ev) {
+  const main = ev.players.slice(0, ev.capacity);
+  const subs = ev.players.slice(ev.capacity);
+  const joined = myName && ev.players.some((p) => p.name === myName);
+  const past = isPast(ev);
+  const dots = Array.from(
+    { length: ev.capacity },
+    (_, i) =>
+      `<span class="${i < Math.min(ev.players.length, ev.capacity) ? "on" : ""}"></span>`,
+  ).join("");
+
+  let action = "";
+  if (!past && myName) {
+    action = joined
+      ? `<button class="btn leave" data-action="leave-event" data-id="${ev.id}">Odhlásiť sa</button>`
+      : `<button class="btn" data-action="join-event" data-id="${ev.id}">${main.length >= ev.capacity ? "Prihlásiť sa ako náhradník" : "Idem hrať"}</button>`;
+  }
+
+  return `<div class="card event ${past ? "past" : ""}">
+    <button class="x" title="Zrušiť termín" data-action="delete-event" data-id="${ev.id}">&#10005;</button>
+    <div class="ev-title">${fmtDate(ev.date)} &middot; ${esc(ev.time?.slice(0, 5) || "")}</div>
+    <div class="ev-place">${esc(ev.place)}</div>
+    ${ev.note ? `<div class="ev-note">${esc(ev.note)}</div>` : ""}
+    <div class="row"><div class="dots">${dots}</div>
+      <span class="count">${main.length}/${ev.capacity}${subs.length ? ` (+${subs.length} náhr.)` : ""}</span></div>
+    ${ev.players.length ? `<div class="names">${main.map((p) => esc(p.name)).join(", ")}${subs.length ? `<span class="subs"> &middot; náhradníci: ${subs.map((p) => esc(p.name)).join(", ")}</span>` : ""}</div>` : ""}
+    ${action ? `<div style="margin-top:12px">${action}</div>` : ""}
+  </div>`;
+}
+
+// ── Akcie ────────────────────────────────────────────────────
+function setName() {
+  const v = $("name-input").value.trim();
+  if (!v) return;
+  myName = v;
+  localStorage.setItem("volley_name", v);
+  render();
+}
+
+function clearName() {
+  myName = "";
+  localStorage.removeItem("volley_name");
+  $("name-input").value = "";
+  render();
+}
+
+function toggleForm() {
+  $("form").classList.toggle("hidden");
+}
+
+function togglePast() {
+  showPast = !showPast;
+  render();
+}
+
+async function createEvent() {
+  const date = $("f-date").value;
+  const time = $("f-time").value || "18:00";
+  const place = $("f-place").value.trim();
+  const capRaw = Number($("f-cap").value);
+  const capacity = Number.isFinite(capRaw) && capRaw >= 2 ? capRaw : 12;
+  const note = $("f-note").value.trim();
+
+  if (!date || !place) {
+    showError("Vyplň dátum a miesto.");
+    return;
+  }
+
+  const { error } = await sb
+    .from("events")
+    .insert({ date, time, place, capacity, note });
+  if (error) {
+    console.error("createEvent() zlyhal:", error);
+    showError(
+      "Uloženie zlyhalo: " +
+        (error.message || "neznáma chyba") +
+        (error.hint ? "\nHint: " + error.hint : "") +
+        (error.details ? "\nDetail: " + error.details : ""),
+    );
+    return;
+  }
+  hideError();
+  $("form").classList.add("hidden");
+  $("f-place").value = "";
+  $("f-note").value = "";
+  load();
+}
+
+async function joinEvent(id) {
+  const { error } = await sb
+    .from("signups")
+    .insert({ event_id: id, name: myName });
+  if (error) {
+    console.error("joinEvent() zlyhal:", error);
+    showError("Prihlásenie zlyhalo: " + error.message);
+  } else load();
+}
+
+async function leaveEvent(id) {
+  const { error } = await sb
+    .from("signups")
+    .delete()
+    .eq("event_id", id)
+    .eq("name", myName);
+  if (error) {
+    console.error("leaveEvent() zlyhal:", error);
+    showError("Odhlásenie zlyhalo: " + error.message);
+  } else load();
+}
+
+async function deleteEvent(id) {
+  if (!confirm("Naozaj zrušiť tento termín?")) return;
+  const { error } = await sb.from("events").delete().eq("id", id);
+  if (error) {
+    console.error("deleteEvent() zlyhal:", error);
+    showError("Zrušenie zlyhalo: " + error.message);
+  } else load();
+}
+
+// ── Event delegation namiesto inline onclick ─────────────────
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  switch (action) {
+    case "set-name": setName(); break;
+    case "clear-name": clearName(); break;
+    case "toggle-form": toggleForm(); break;
+    case "toggle-past": togglePast(); break;
+    case "create-event": createEvent(); break;
+    case "join-event": joinEvent(id); break;
+    case "leave-event": leaveEvent(id); break;
+    case "delete-event": deleteEvent(id); break;
+  }
+});
+
+$("name-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") setName();
+});
+
+// ── Realtime: zmeny od ostatných sa prejavia okamžite ────────
+sb.channel("volley")
+  .on(
+    "postgres_changes",
+    { event: "*", schema: "public", table: "events" },
+    load,
+  )
+  .on(
+    "postgres_changes",
+    { event: "*", schema: "public", table: "signups" },
+    load,
+  )
+  .subscribe();
+
+if (myName) $("name-input").value = myName;
+load();

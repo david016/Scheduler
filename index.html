@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="sk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Volejbal</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <h1>Volejbal <span class="dot">&#9679;</span></h1>
+        <p>Dohadovanie termínov</p>
+      </div>
+    </header>
+
+    <main id="app">
+      <div id="error" class="error hidden"></div>
+
+      <!-- Meno -->
+      <div id="name-box" class="card">
+        <label>Tvoje meno (pod ním sa prihlasuješ)</label>
+        <div class="cols">
+          <div><input id="name-input" placeholder="napr. Dávid" /></div>
+          <div class="narrow">
+            <button class="btn" style="width: 100%" data-action="set-name">
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="topbar" class="topbar hidden">
+        <span style="font-size: 14px; color: var(--muted)">
+          Hráš ako
+          <strong id="my-name-label" style="color: var(--ink)"></strong>
+          <button class="link" data-action="clear-name">zmeniť</button>
+        </span>
+        <button class="btn gold" data-action="toggle-form">+ Nový termín</button>
+      </div>
+
+      <!-- Nový termín -->
+      <div id="form" class="form hidden">
+        <div class="cols">
+          <div><label>Dátum</label><input type="date" id="f-date" /></div>
+          <div class="narrow">
+            <label>Čas</label><input type="time" id="f-time" value="18:00" />
+          </div>
+        </div>
+        <div>
+          <label>Miesto</label
+          ><input id="f-place" placeholder="napr. Hala Podvinný mlýn" />
+        </div>
+        <div class="cols">
+          <div class="narrow">
+            <label>Kapacita</label
+            ><input type="number" id="f-cap" value="12" min="2" max="30" />
+          </div>
+          <div>
+            <label>Poznámka</label><input id="f-note" placeholder="voliteľné" />
+          </div>
+        </div>
+        <div class="cols">
+          <div class="narrow">
+            <button class="btn" data-action="create-event">Vytvoriť</button>
+          </div>
+          <div><button class="link" data-action="toggle-form">Zrušiť</button></div>
+        </div>
+      </div>
+
+      <div id="events"></div>
+      <div id="past-section" class="hidden">
+        <button class="link" id="past-toggle" data-action="toggle-past"></button>
+        <div
+          id="past-events"
+          class="hidden"
+          style="
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+          "
+        ></div>
+      </div>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
