@@ -118,6 +118,13 @@ main {
   vertical-align: middle;
   letter-spacing: 0.3px;
 }
+.names .sitting {
+  color: #c0392b;
+  font-weight: 600;
+}
+.names .sitting .tag {
+  opacity: 0.5;
+}
 .actions {
   margin-top: 12px;
   display: flex;

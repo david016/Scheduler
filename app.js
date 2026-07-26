@@ -206,17 +206,43 @@ function render() {
   $("past-events").innerHTML = past.map(cardHTML).join("");
 }
 
+function allocatePlayers(players, small, playing) {
+  const inCourts = new Set();
+  const twoVTwoNeeded = small * SMALL;
+  let taken = 0;
+  for (const p of players) {
+    if (p.willing_2v2 && taken < twoVTwoNeeded) {
+      inCourts.add(p.id);
+      taken++;
+    }
+  }
+  const regNeeded = playing - twoVTwoNeeded;
+  let taken2 = 0;
+  for (const p of players) {
+    if (!inCourts.has(p.id) && taken2 < regNeeded) {
+      inCourts.add(p.id);
+      taken2++;
+    }
+  }
+  return inCourts;
+}
+
 function cardHTML(ev) {
   const total = ev.players.length;
   const willing = ev.players.filter((p) => p.willing_2v2).length;
   const joined = myName && ev.players.some((p) => p.name === myName);
   const past = isPast(ev);
 
+  const c = calculateCourts(total, willing);
+  const playing = allocatePlayers(ev.players, c.small, c.playing);
+
   const names = ev.players
-    .map(
-      (p) =>
-        `${esc(p.name)}${p.willing_2v2 ? ' <span class="tag">2v2</span>' : ""}`,
-    )
+    .map((p) => {
+      const tag = p.willing_2v2 ? ' <span class="tag">2v2</span>' : "";
+      return playing.has(p.id)
+        ? `${esc(p.name)}${tag}`
+        : `<span class="sitting">${esc(p.name)}${tag}</span>`;
+    })
     .join(", ");
 
   let action = "";
